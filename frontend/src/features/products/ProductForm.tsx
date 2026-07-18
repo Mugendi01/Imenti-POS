@@ -63,12 +63,13 @@ export default function ProductForm({
     onClose()
   }
 
-  const field = (name: keyof FormInput, label: string, type = 'text') => (
+  const field = (name: keyof FormInput, label: string, type = 'text', step?: string) => (
     <div>
       <label className="block text-sm font-medium text-gray-700">{label}</label>
       <input
         {...register(name)}
         type={type}
+        step={step}
         className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
       />
       {errors[name] && <p className="text-sm text-red-600">{errors[name]?.message}</p>}
@@ -93,12 +94,12 @@ export default function ProductForm({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          {field('price', 'Price', 'number')}
-          {field('cost', 'Cost', 'number')}
+          {field('price', 'Price', 'number', '0.01')}
+          {field('cost', 'Cost', 'number', '0.01')}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          {field('tax_rate', 'Tax %', 'number')}
+          {field('tax_rate', 'Tax %', 'number', '0.01')}
           {field('reorder_level', 'Reorder Level', 'number')}
         </div>
 

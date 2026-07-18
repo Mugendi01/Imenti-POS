@@ -40,7 +40,7 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request)
     {
-        $product = Product::create($request->validated());
+        $product = Product::create($request->validated())->fresh();
 
         return (new ProductResource($product->load('category')))
             ->response()

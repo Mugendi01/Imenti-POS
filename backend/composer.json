@@ -1,12 +1,12 @@
 {
     "name": "imenti/pos-backend",
     "type": "project",
-    "description": "Imenti POS API — Laravel 11",
+    "description": "Imenti POS API — Laravel 12",
     "keywords": ["laravel", "pos", "inventory"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^11.0",
+        "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9"
     },

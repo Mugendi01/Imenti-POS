@@ -1,8 +1,8 @@
 # Imenti POS — Backend
 
-Laravel 11 API. Auth via Sanctum personal-access tokens (Bearer, not cookie/session SPA auth).
+Laravel 12 API (upgraded from the originally-specified 11, which is past its security-support window). Auth via Sanctum personal-access tokens (Bearer, not cookie/session SPA auth).
 
-**This was hand-written without a working PHP/Composer on the dev machine — it has not been run yet.** Once PHP 8.2+ and Composer are installed:
+**Verified working end-to-end**: composer install, migrate --seed, artisan serve, and a real login/CRUD round trip from the React frontend all confirmed locally (PHP 8.2.12 via XAMPP, MariaDB 10.4).
 
 ## Setup
 

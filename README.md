@@ -2,8 +2,8 @@
 
 Scalable Point-of-Sale + Inventory Management System.
 
-- **Frontend:** React 18 + TypeScript (Vite), Redux Toolkit / RTK Query, Tailwind CSS
-- **Backend:** Laravel 11 (PHP 8.2+), Sanctum auth, MySQL/PostgreSQL
+- **Frontend:** React 18/19 + TypeScript (Vite), Redux Toolkit / RTK Query, Tailwind CSS
+- **Backend:** Laravel 12 (PHP 8.2+), Sanctum auth, MySQL/PostgreSQL
 - **Integrations:** Quagga.js (barcode), Stripe/PayPal (payments), Recharts (charts), jsPDF (export)
 
 ## Structure
