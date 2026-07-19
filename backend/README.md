@@ -31,13 +31,20 @@ Default seeded login: `admin@imenti-pos.test` / `password` (change immediately o
 - **Sales history:** `GET /api/v1/sales` (date range + status filters, cashier-scoped for the `cashier` role, full visibility for `admin`/`manager`), `GET /api/v1/sales/{id}`.
 - Every completed sale writes `sale_items`, a `payments` row, and an `inventory_logs` row per line (type `sale`) — `products.qty_on_hand` and `products.version` (optimistic-lock counter) update in the same transaction.
 
+**Phase 3 — Inventory / reports**
+- **Inventory:** `GET /api/v1/inventory` (low-stock filter), `GET /api/v1/inventory/logs` (full movement history per product), `POST /api/v1/inventory/adjust` (restock/adjust/return, admin/manager only, rejects negative resulting stock) — all inside `DB::transaction` + `lockForUpdate`.
+- **Reports:** `GET /api/v1/reports/dashboard` (today's sales/transactions, low-stock count, active users — open to all authenticated roles), `GET /api/v1/reports/sales` (time series, `group_by=day|week|month`), `GET /api/v1/reports/top-products`, `GET /api/v1/reports/revenue` (today/week/month summary) — the latter three gated to `admin`/`manager` via the `role:` middleware.
+
 ## Structure
 
 ```
 app/
-  Http/Controllers/Api/   AuthController, ProductController, CategoryController, SaleController
-  Http/Requests/          form validation (Store/UpdateProductRequest, StoreSaleRequest, LoginRequest)
-  Http/Resources/         JSON shaping (ProductResource, UserResource, SaleResource, SaleItemResource)
+  Http/Controllers/Api/   AuthController, ProductController, CategoryController,
+                          SaleController, InventoryController, ReportController
+  Http/Requests/          form validation (Store/UpdateProductRequest, StoreSaleRequest,
+                          StoreInventoryAdjustmentRequest, LoginRequest)
+  Http/Resources/         JSON shaping (ProductResource, UserResource, SaleResource,
+                          SaleItemResource, InventoryLogResource)
   Models/                 User, Role, Category, Product, InventoryLog, AuditLog, Sale, SaleItem, Payment
   Policies/                ProductPolicy, SalePolicy
   Observers/               AuditLogObserver
@@ -46,6 +53,6 @@ database/
 routes/api.php             all routes under /api/v1
 ```
 
-## Next (Phase 3+)
+## Next (Phase 4+)
 
-Inventory adjustment endpoints + low-stock alerts, refunds, reports (sales/revenue/top-products + export), Stripe/PayPal real payment integration, barcode lookup wiring for Quagga.js on the frontend.
+Refunds, Stripe/PayPal real payment integration, PDF/CSV export, barcode lookup wiring for Quagga.js on the frontend.

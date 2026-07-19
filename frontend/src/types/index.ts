@@ -69,3 +69,14 @@ export interface CartItem {
   discount: number
   qty_on_hand: number
 }
+
+export interface InventoryLog {
+  id: number
+  product_id: number
+  product_name: string
+  change_qty: number
+  type: 'sale' | 'restock' | 'adjust' | 'return'
+  reference_id: number | null
+  user_name: string
+  created_at: string
+}
