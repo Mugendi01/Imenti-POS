@@ -17,30 +17,35 @@ php artisan serve
 
 Default seeded login: `admin@imenti-pos.test` / `password` (change immediately outside local dev).
 
-## What's implemented (Phase 1: Core)
+## What's implemented
 
+**Phase 1 — Core**
 - **Auth:** `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout` — Sanctum tokens, rate-limited login (5/min/IP).
 - **Products:** full CRUD (`/api/v1/products`), search/pagination, category filter, policy-gated (admin/manager can write, admin-only delete).
 - **Categories:** read-only list (`/api/v1/categories`).
-- **RBAC:** `roles` table (admin/manager/cashier) + `ProductPolicy`; `role:` middleware alias available for route-level gating.
-- **Audit log:** `AuditLogObserver` records create/update/delete on `Product` and `User` to `audit_logs`.
-- **Schema laid down for later phases:** `inventory_logs`, `audit_logs` tables exist now; `sales`/`sale_items`/`payments`/`refunds` migrations land in Phase 2.
+- **RBAC:** `roles` table (admin/manager/cashier) + policies; `role:` middleware alias available for route-level gating.
+- **Audit log:** `AuditLogObserver` records create/update/delete on `Product`, `User`, and `Sale` to `audit_logs`.
+
+**Phase 2 — POS / transactions**
+- **Checkout:** `POST /api/v1/sales` — atomic (`DB::transaction` + `lockForUpdate` on the affected products) stock decrement, per-line + order-level discount, tax computed from each product's `tax_rate`, cash change calculation, rejects oversell with 409 and inactive/insufficient-tender with 422.
+- **Sales history:** `GET /api/v1/sales` (date range + status filters, cashier-scoped for the `cashier` role, full visibility for `admin`/`manager`), `GET /api/v1/sales/{id}`.
+- Every completed sale writes `sale_items`, a `payments` row, and an `inventory_logs` row per line (type `sale`) — `products.qty_on_hand` and `products.version` (optimistic-lock counter) update in the same transaction.
 
 ## Structure
 
 ```
 app/
-  Http/Controllers/Api/   AuthController, ProductController, CategoryController
-  Http/Requests/          form validation (StoreProductRequest, UpdateProductRequest, LoginRequest)
-  Http/Resources/         JSON shaping (ProductResource, UserResource)
-  Models/                 User, Role, Category, Product, InventoryLog, AuditLog
-  Policies/                ProductPolicy
+  Http/Controllers/Api/   AuthController, ProductController, CategoryController, SaleController
+  Http/Requests/          form validation (Store/UpdateProductRequest, StoreSaleRequest, LoginRequest)
+  Http/Resources/         JSON shaping (ProductResource, UserResource, SaleResource, SaleItemResource)
+  Models/                 User, Role, Category, Product, InventoryLog, AuditLog, Sale, SaleItem, Payment
+  Policies/                ProductPolicy, SalePolicy
   Observers/               AuditLogObserver
 database/
   migrations/  seeders/  factories/
 routes/api.php             all routes under /api/v1
 ```
 
-## Next (Phase 2+)
+## Next (Phase 3+)
 
-Transactions/checkout (atomic stock decrement + `sales`/`sale_items`), Stripe/PayPal payment intents, inventory adjustment endpoints + low-stock alerts, reports (sales/revenue/top-products + export), barcode lookup wiring for Quagga.js on the frontend.
+Inventory adjustment endpoints + low-stock alerts, refunds, reports (sales/revenue/top-products + export), Stripe/PayPal real payment integration, barcode lookup wiring for Quagga.js on the frontend.

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Product;
+use App\Models\Sale;
 use App\Models\User;
 use App\Observers\AuditLogObserver;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -29,5 +30,6 @@ class AppServiceProvider extends ServiceProvider
 
         Product::observe(AuditLogObserver::class);
         User::observe(AuditLogObserver::class);
+        Sale::observe(AuditLogObserver::class);
     }
 }

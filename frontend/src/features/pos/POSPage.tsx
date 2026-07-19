@@ -1,8 +1,186 @@
+import { useState } from 'react'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { useListProductsQuery } from '@/features/products/productsApi'
+import { useCheckoutMutation, type CheckoutResponse } from '@/features/sales/salesApi'
+import {
+  addItem,
+  clearCart,
+  removeItem,
+  selectCartDiscount,
+  selectCartItems,
+  selectCartSubtotal,
+  selectCartTax,
+  selectCartTotal,
+  setDiscount,
+  setQty,
+} from './cartSlice'
+import Receipt from './Receipt'
+
 export default function POSPage() {
+  const [search, setSearch] = useState('')
+  const { data: results } = useListProductsQuery({ search: search || undefined, per_page: 8 })
+
+  const dispatch = useAppDispatch()
+  const items = useAppSelector(selectCartItems)
+  const discount = useAppSelector(selectCartDiscount)
+  const subtotal = useAppSelector(selectCartSubtotal)
+  const tax = useAppSelector(selectCartTax)
+  const total = useAppSelector(selectCartTotal)
+
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash')
+  const [amountTendered, setAmountTendered] = useState('')
+  const [checkout, { isLoading, error }] = useCheckoutMutation()
+  const [completedSale, setCompletedSale] = useState<CheckoutResponse | null>(null)
+
+  const tendered = parseFloat(amountTendered) || 0
+  const canCheckout = items.length > 0 && (paymentMethod !== 'cash' || tendered >= total)
+
+  const handleCheckout = async () => {
+    const result = await checkout({
+      items: items.map((i) => ({ product_id: i.product_id, qty: i.qty, discount: i.discount })),
+      discount,
+      payment_method: paymentMethod,
+      amount_tendered: paymentMethod === 'cash' ? tendered : undefined,
+    }).unwrap()
+
+    setCompletedSale(result)
+    dispatch(clearCart())
+    setAmountTendered('')
+  }
+
+  const apiErrorMessage =
+    error && typeof error === 'object' && 'data' in error
+      ? ((error.data as { message?: string })?.message ?? 'Checkout failed.')
+      : undefined
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-gray-900 mb-2">Point of Sale</h1>
-      <p className="text-gray-500">Cart, barcode scan, and checkout — Phase 2.</p>
+    <div className="grid grid-cols-3 gap-6">
+      <div className="col-span-2 space-y-3">
+        <h1 className="text-2xl font-semibold text-gray-900">Point of Sale</h1>
+
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name, SKU or barcode..."
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+        />
+
+        <div className="bg-white rounded-lg shadow divide-y divide-gray-100">
+          {results?.data.length === 0 && (
+            <p className="px-4 py-6 text-center text-gray-400 text-sm">No products found.</p>
+          )}
+          {results?.data.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => dispatch(addItem(p))}
+              disabled={p.qty_on_hand === 0}
+              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <div>
+                <p className="font-medium text-gray-900">{p.name}</p>
+                <p className="text-gray-400">{p.sku}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-gray-900">{p.price.toFixed(2)}</p>
+                <p className="text-gray-400">{p.qty_on_hand} in stock</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-4 space-y-3 h-fit">
+        <h2 className="font-medium text-gray-900">Cart</h2>
+
+        {items.length === 0 && <p className="text-sm text-gray-400">Cart is empty.</p>}
+
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div key={item.product_id} className="flex items-center justify-between text-sm">
+              <div className="flex-1">
+                <p className="text-gray-900">{item.name}</p>
+                <p className="text-gray-400">{item.price.toFixed(2)} each</p>
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={item.qty_on_hand}
+                value={item.qty}
+                onChange={(e) =>
+                  dispatch(setQty({ productId: item.product_id, qty: parseInt(e.target.value, 10) || 1 }))
+                }
+                className="w-14 rounded border border-gray-300 px-2 py-1 text-center"
+              />
+              <button
+                onClick={() => dispatch(removeItem(item.product_id))}
+                className="ml-2 text-red-600 hover:underline"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-gray-200 pt-3 space-y-2 text-sm">
+          <div className="flex justify-between items-center">
+            <span>Discount</span>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={discount || ''}
+              onChange={(e) => dispatch(setDiscount(parseFloat(e.target.value) || 0))}
+              className="w-20 rounded border border-gray-300 px-2 py-1 text-right"
+            />
+          </div>
+          <div className="flex justify-between text-gray-500">
+            <span>Subtotal</span>
+            <span>{subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-gray-500">
+            <span>Tax</span>
+            <span>{tax.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between font-semibold text-gray-900">
+            <span>Total</span>
+            <span>{total.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <select
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'card')}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="cash">Cash</option>
+            <option value="card">Card</option>
+          </select>
+          {paymentMethod === 'cash' && (
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={amountTendered}
+              onChange={(e) => setAmountTendered(e.target.value)}
+              placeholder="Amount tendered"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+          )}
+        </div>
+
+        {apiErrorMessage && <p className="text-sm text-red-600">{apiErrorMessage}</p>}
+
+        <button
+          onClick={handleCheckout}
+          disabled={!canCheckout || isLoading}
+          className="w-full bg-indigo-600 text-white rounded py-2 text-sm disabled:opacity-50"
+        >
+          {isLoading ? 'Processing...' : 'Complete Sale'}
+        </button>
+      </div>
+
+      {completedSale && <Receipt sale={completedSale} onClose={() => setCompletedSale(null)} />}
     </div>
   )
 }

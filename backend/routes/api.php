@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\SaleController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -14,5 +15,6 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/categories', [CategoryController::class, 'index']);
         Route::apiResource('products', ProductController::class);
+        Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
     });
 });

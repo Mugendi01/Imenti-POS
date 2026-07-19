@@ -12,10 +12,11 @@ export interface ProductInput {
   reorder_level: number
 }
 
-interface ListParams {
+export interface ListParams {
   search?: string
   category?: number
   page?: number
+  per_page?: number
 }
 
 export const productsApi = baseApi.injectEndpoints({
@@ -32,10 +33,12 @@ export const productsApi = baseApi.injectEndpoints({
     }),
     createProduct: builder.mutation<Product, ProductInput>({
       query: (body) => ({ url: '/products', method: 'POST', data: body }),
+      transformResponse: (response: { data: Product }) => response.data,
       invalidatesTags: [{ type: 'Products', id: 'LIST' }],
     }),
     updateProduct: builder.mutation<Product, { id: number; body: Partial<ProductInput> }>({
       query: ({ id, body }) => ({ url: `/products/${id}`, method: 'PUT', data: body }),
+      transformResponse: (response: { data: Product }) => response.data,
       invalidatesTags: (_r, _e, arg) => [
         { type: 'Products', id: arg.id },
         { type: 'Products', id: 'LIST' },

@@ -35,3 +35,37 @@ export interface Paginated<T> {
     total: number
   }
 }
+
+export interface SaleItem {
+  id: number
+  product_id: number
+  product_name: string
+  qty: number
+  unit_price: number
+  discount: number
+  subtotal: number
+}
+
+export interface Sale {
+  id: number
+  invoice_no: string
+  user?: { id: number; name: string }
+  subtotal: number
+  discount: number
+  tax: number
+  total: number
+  payment_method: string
+  status: 'completed' | 'refunded' | 'voided'
+  items?: SaleItem[]
+  created_at: string
+}
+
+export interface CartItem {
+  product_id: number
+  name: string
+  price: number
+  tax_rate: number
+  qty: number
+  discount: number
+  qty_on_hand: number
+}
