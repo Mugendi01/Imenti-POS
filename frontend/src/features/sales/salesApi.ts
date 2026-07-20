@@ -10,12 +10,14 @@ export interface CheckoutItem {
 export interface CheckoutRequest {
   items: CheckoutItem[]
   discount?: number
-  payment_method: 'cash' | 'card'
+  payment_method: 'cash' | 'mpesa'
   amount_tendered?: number
+  phone?: string
 }
 
 export interface CheckoutResponse extends Sale {
-  change: number
+  // Only present for cash sales; M-Pesa has no "tendered" concept.
+  change?: number
 }
 
 interface ListSalesParams {
@@ -29,7 +31,7 @@ export const salesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     checkout: builder.mutation<CheckoutResponse, CheckoutRequest>({
       query: (body) => ({ url: '/sales', method: 'POST', data: body }),
-      transformResponse: (response: { data: Sale; change: number }) => ({
+      transformResponse: (response: { data: Sale; change?: number }) => ({
         ...response.data,
         change: response.change,
       }),
@@ -48,7 +50,12 @@ export const salesApi = baseApi.injectEndpoints({
             ]
           : [{ type: 'Sales' as const, id: 'LIST' }],
     }),
+    getSale: builder.query<Sale, number>({
+      query: (id) => ({ url: `/sales/${id}`, method: 'GET' }),
+      transformResponse: (response: { data: Sale }) => response.data,
+      providesTags: (_result, _error, id) => [{ type: 'Sales', id }],
+    }),
   }),
 })
 
-export const { useCheckoutMutation, useListSalesQuery } = salesApi
+export const { useCheckoutMutation, useListSalesQuery, useGetSaleQuery } = salesApi

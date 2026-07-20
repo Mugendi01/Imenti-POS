@@ -11,8 +11,10 @@ class Payment extends Model
         'sale_id',
         'provider',
         'provider_ref',
+        'mpesa_receipt',
         'amount',
         'status',
+        'failure_reason',
     ];
 
     protected function casts(): array

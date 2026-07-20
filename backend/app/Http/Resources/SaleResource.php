@@ -21,6 +21,7 @@ class SaleResource extends JsonResource
             'tax' => (float) $this->tax,
             'total' => (float) $this->total,
             'payment_method' => $this->payment_method,
+            'phone' => $this->phone,
             'status' => $this->status,
             'items' => SaleItemResource::collection($this->whenLoaded('items')),
             'created_at' => $this->created_at,

@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { useRevenueSummaryQuery, useSalesReportQuery, useTopProductsQuery } from './reportsApi'
+import { downloadReportCsv, useRevenueSummaryQuery, useSalesReportQuery, useTopProductsQuery } from './reportsApi'
 
 export default function ReportsPage() {
   const [groupBy, setGroupBy] = useState<'day' | 'week' | 'month'>('day')
@@ -53,15 +53,23 @@ export default function ReportsPage() {
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-medium text-gray-900">Sales over time</h2>
-          <select
-            value={groupBy}
-            onChange={(e) => setGroupBy(e.target.value as typeof groupBy)}
-            className="text-sm rounded border border-gray-300 px-2 py-1"
-          >
-            <option value="day">Daily</option>
-            <option value="week">Weekly</option>
-            <option value="month">Monthly</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as typeof groupBy)}
+              className="text-sm rounded border border-gray-300 px-2 py-1"
+            >
+              <option value="day">Daily</option>
+              <option value="week">Weekly</option>
+              <option value="month">Monthly</option>
+            </select>
+            <button
+              onClick={() => downloadReportCsv('sales')}
+              className="text-sm px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+            >
+              Export CSV
+            </button>
+          </div>
         </div>
         <div style={{ width: '100%', height: 260 }}>
           <ResponsiveContainer>
@@ -77,7 +85,15 @@ export default function ReportsPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-4">
-        <h2 className="font-medium text-gray-900 mb-2">Top products (last 30 days)</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-medium text-gray-900">Top products (last 30 days)</h2>
+          <button
+            onClick={() => downloadReportCsv('top-products')}
+            className="text-sm px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+          >
+            Export CSV
+          </button>
+        </div>
         <div style={{ width: '100%', height: 260 }}>
           <ResponsiveContainer>
             <BarChart data={topProducts ?? []}>

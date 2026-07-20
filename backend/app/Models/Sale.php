@@ -19,6 +19,7 @@ class Sale extends Model
         'tax',
         'total',
         'payment_method',
+        'phone',
         'status',
     ];
 

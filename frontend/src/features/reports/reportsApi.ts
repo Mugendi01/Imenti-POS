@@ -1,4 +1,5 @@
 import { baseApi } from '@/api/baseApi'
+import { axiosInstance } from '@/api/axios'
 
 export interface DashboardStats {
   today_sales: number
@@ -66,3 +67,24 @@ export const {
   useTopProductsQuery,
   useRevenueSummaryQuery,
 } = reportsApi
+
+/**
+ * RTK Query isn't a good fit for triggering a file download, so this is a
+ * plain authenticated fetch (reusing the same axios instance/token) that
+ * saves the streamed CSV via a throwaway anchor element.
+ */
+export async function downloadReportCsv(report: 'sales' | 'top-products') {
+  const response = await axiosInstance.get('/reports/export', {
+    params: { report },
+    responseType: 'blob',
+  })
+
+  const url = URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${report}.csv`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}

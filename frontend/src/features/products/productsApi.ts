@@ -48,6 +48,10 @@ export const productsApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/products/${id}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Products', id: 'LIST' }],
     }),
+    lookupBarcode: builder.query<Product, string>({
+      query: (barcode) => ({ url: `/products/barcode/${encodeURIComponent(barcode)}`, method: 'GET' }),
+      transformResponse: (response: { data: Product }) => response.data,
+    }),
   }),
 })
 
@@ -56,4 +60,5 @@ export const {
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
+  useLazyLookupBarcodeQuery,
 } = productsApi

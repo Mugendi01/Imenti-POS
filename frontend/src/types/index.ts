@@ -55,7 +55,8 @@ export interface Sale {
   tax: number
   total: number
   payment_method: string
-  status: 'completed' | 'refunded' | 'voided'
+  phone: string | null
+  status: 'pending' | 'completed' | 'refunded' | 'voided'
   items?: SaleItem[]
   created_at: string
 }

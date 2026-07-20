@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { useListProductsQuery } from '@/features/products/productsApi'
-import { useCheckoutMutation, type CheckoutResponse } from '@/features/sales/salesApi'
+import { useCheckoutMutation, useGetSaleQuery, type CheckoutResponse } from '@/features/sales/salesApi'
 import {
   addItem,
   clearCart,
@@ -16,6 +16,12 @@ import {
 } from './cartSlice'
 import Receipt from './Receipt'
 
+// Quagga2 is a large dependency (image processing) only needed once someone
+// actually opens the scanner, so it's split into its own chunk.
+const BarcodeScannerModal = lazy(() => import('./BarcodeScannerModal'))
+
+const PHONE_PATTERN = /^(?:254|0)7\d{8}$/
+
 export default function POSPage() {
   const [search, setSearch] = useState('')
   const { data: results } = useListProductsQuery({ search: search || undefined, per_page: 8 })
@@ -27,25 +33,59 @@ export default function POSPage() {
   const tax = useAppSelector(selectCartTax)
   const total = useAppSelector(selectCartTotal)
 
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash')
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'mpesa'>('cash')
   const [amountTendered, setAmountTendered] = useState('')
+  const [phone, setPhone] = useState('')
   const [checkout, { isLoading, error }] = useCheckoutMutation()
   const [completedSale, setCompletedSale] = useState<CheckoutResponse | null>(null)
+  const [pendingSaleId, setPendingSaleId] = useState<number | null>(null)
+  const [mpesaError, setMpesaError] = useState<string | null>(null)
+  const [showScanner, setShowScanner] = useState(false)
+
+  const { data: polledSale } = useGetSaleQuery(pendingSaleId ?? 0, {
+    skip: pendingSaleId === null,
+    pollingInterval: pendingSaleId !== null ? 2000 : 0,
+  })
+
+  useEffect(() => {
+    if (!polledSale) return
+
+    if (polledSale.status === 'completed') {
+      setCompletedSale(polledSale)
+      setPendingSaleId(null)
+      dispatch(clearCart())
+    } else if (polledSale.status === 'voided') {
+      setPendingSaleId(null)
+      setMpesaError('The M-Pesa payment failed or was cancelled on the phone. You can try again.')
+    }
+  }, [polledSale, dispatch])
 
   const tendered = parseFloat(amountTendered) || 0
-  const canCheckout = items.length > 0 && (paymentMethod !== 'cash' || tendered >= total)
+  const phoneValid = PHONE_PATTERN.test(phone)
+  const canCheckout =
+    items.length > 0 &&
+    pendingSaleId === null &&
+    (paymentMethod === 'cash' ? tendered >= total : phoneValid)
 
   const handleCheckout = async () => {
+    setMpesaError(null)
     const result = await checkout({
       items: items.map((i) => ({ product_id: i.product_id, qty: i.qty, discount: i.discount })),
       discount,
       payment_method: paymentMethod,
       amount_tendered: paymentMethod === 'cash' ? tendered : undefined,
+      phone: paymentMethod === 'mpesa' ? phone : undefined,
     }).unwrap()
 
-    setCompletedSale(result)
-    dispatch(clearCart())
-    setAmountTendered('')
+    if (result.status === 'completed') {
+      setCompletedSale(result)
+      dispatch(clearCart())
+      setAmountTendered('')
+    } else {
+      // Real (non-mock) M-Pesa: sale is 'pending' until Safaricom's callback
+      // arrives. Poll until it flips to completed/voided.
+      setPendingSaleId(result.id)
+    }
   }
 
   const apiErrorMessage =
@@ -56,7 +96,15 @@ export default function POSPage() {
   return (
     <div className="grid grid-cols-3 gap-6">
       <div className="col-span-2 space-y-3">
-        <h1 className="text-2xl font-semibold text-gray-900">Point of Sale</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-gray-900">Point of Sale</h1>
+          <button
+            onClick={() => setShowScanner(true)}
+            className="px-3 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-50"
+          >
+            Scan Barcode
+          </button>
+        </div>
 
         <input
           value={search}
@@ -147,40 +195,66 @@ export default function POSPage() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <select
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'card')}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="cash">Cash</option>
-            <option value="card">Card</option>
-          </select>
-          {paymentMethod === 'cash' && (
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={amountTendered}
-              onChange={(e) => setAmountTendered(e.target.value)}
-              placeholder="Amount tendered"
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-            />
-          )}
-        </div>
+        {pendingSaleId !== null ? (
+          <div className="rounded border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800 space-y-1">
+            <p className="font-medium">Waiting for M-Pesa confirmation...</p>
+            <p className="text-indigo-600">Ask the customer to enter their M-Pesa PIN on {phone}.</p>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'mpesa')}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="cash">Cash</option>
+                <option value="mpesa">M-Pesa</option>
+              </select>
+              {paymentMethod === 'cash' ? (
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={amountTendered}
+                  onChange={(e) => setAmountTendered(e.target.value)}
+                  placeholder="Amount tendered"
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                />
+              ) : (
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="M-Pesa phone e.g. 0712345678"
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                />
+              )}
+            </div>
 
-        {apiErrorMessage && <p className="text-sm text-red-600">{apiErrorMessage}</p>}
+            {apiErrorMessage && <p className="text-sm text-red-600">{apiErrorMessage}</p>}
+            {mpesaError && <p className="text-sm text-red-600">{mpesaError}</p>}
 
-        <button
-          onClick={handleCheckout}
-          disabled={!canCheckout || isLoading}
-          className="w-full bg-indigo-600 text-white rounded py-2 text-sm disabled:opacity-50"
-        >
-          {isLoading ? 'Processing...' : 'Complete Sale'}
-        </button>
+            <button
+              onClick={handleCheckout}
+              disabled={!canCheckout || isLoading}
+              className="w-full bg-indigo-600 text-white rounded py-2 text-sm disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : 'Complete Sale'}
+            </button>
+          </>
+        )}
       </div>
 
       {completedSale && <Receipt sale={completedSale} onClose={() => setCompletedSale(null)} />}
+      {showScanner && (
+        <Suspense fallback={null}>
+          <BarcodeScannerModal
+            onClose={() => setShowScanner(false)}
+            onDetected={() => setShowScanner(false)}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

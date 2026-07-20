@@ -38,6 +38,19 @@ class ProductController extends Controller
         return new ProductResource($product->load('category'));
     }
 
+    public function showByBarcode(Request $request, string $barcode)
+    {
+        $this->authorize('viewAny', Product::class);
+
+        $product = Product::where('barcode', $barcode)->where('active', true)->with('category')->first();
+
+        if (! $product) {
+            return response()->json(['message' => 'No active product matches that barcode.'], 404);
+        }
+
+        return new ProductResource($product);
+    }
+
     public function store(StoreProductRequest $request)
     {
         $product = Product::create($request->validated())->fresh();

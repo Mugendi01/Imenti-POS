@@ -1,6 +1,19 @@
-import type { CheckoutResponse } from '@/features/sales/salesApi'
+import type { Sale } from '@/types'
 
-export default function Receipt({ sale, onClose }: { sale: CheckoutResponse; onClose: () => void }) {
+// jsPDF pulls in html2canvas (~200KB) that's only needed if someone actually
+// clicks "Download PDF", so it's split into its own chunk loaded on demand.
+const downloadReceiptPdf = async (sale: Sale & { change?: number }) => {
+  const { downloadReceiptPdf: run } = await import('./receiptPdf')
+  run(sale)
+}
+
+export default function Receipt({
+  sale,
+  onClose,
+}: {
+  sale: Sale & { change?: number }
+  onClose: () => void
+}) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm space-y-3">
@@ -37,18 +50,27 @@ export default function Receipt({ sale, onClose }: { sale: CheckoutResponse; onC
             <span>Total</span>
             <span>{sale.total.toFixed(2)}</span>
           </div>
-          {sale.payment_method === 'cash' && (
+          {sale.payment_method === 'cash' && sale.change !== undefined && (
             <div className="flex justify-between text-gray-500">
               <span>Change</span>
               <span>{sale.change.toFixed(2)}</span>
             </div>
           )}
+          {sale.payment_method === 'mpesa' && (
+            <div className="flex justify-between text-gray-500">
+              <span>Paid via M-Pesa</span>
+              <span>{sale.phone}</span>
+            </div>
+          )}
         </div>
 
         <button
-          onClick={onClose}
-          className="w-full bg-indigo-600 text-white rounded py-2 text-sm"
+          onClick={() => downloadReceiptPdf(sale)}
+          className="w-full border border-gray-300 rounded py-2 text-sm text-gray-700"
         >
+          Download PDF
+        </button>
+        <button onClick={onClose} className="w-full bg-indigo-600 text-white rounded py-2 text-sm">
           New Sale
         </button>
       </div>

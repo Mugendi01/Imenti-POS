@@ -20,8 +20,9 @@ class StoreSaleRequest extends FormRequest
             'items.*.qty' => ['required', 'integer', 'min:1'],
             'items.*.discount' => ['nullable', 'numeric', 'min:0'],
             'discount' => ['nullable', 'numeric', 'min:0'],
-            'payment_method' => ['required', Rule::in(['cash', 'card'])],
+            'payment_method' => ['required', Rule::in(['cash', 'mpesa'])],
             'amount_tendered' => ['nullable', 'numeric', 'min:0'],
+            'phone' => ['required_if:payment_method,mpesa', 'nullable', 'string', 'regex:/^(?:254|0)7\d{8}$/'],
         ];
     }
 }
